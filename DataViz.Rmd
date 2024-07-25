@@ -1,0 +1,1275 @@
+---
+title: "Interactive Visualization"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load necessary packages
+
+```{r package}
+#Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(shiny)
+library(plotly)
+library(flexdashboard)
+library(tidyr)
+library(stringr)
+library(scales)
+library(shinydashboard)
+library(rsconnect)
+
+```
+
+
+## Visualization 1: Dataset 1 SDD GEDSI Dataset [Sent via email for me to do "Data Analysis Test" on the position of "Statistic Advisor/Officer - Social (GEDSI)"
+
+# Part 1
+```{r vis}
+# Load the dataset from a single sheet
+load_data <- function(file_path) {
+  data <- read_excel(file_path, sheet = "Database")
+  return(data)
+}
+
+# Process education data for women
+process_education_data <- function(data) {
+  education_data <- data %>%
+    filter(sex == "2") %>%
+    select(contains("Education")) %>%
+    na.omit()
+  
+  education_data$education_level <- factor(education_data$education_level,
+                                           levels = 1:8,
+                                           labels = c("Preschool, kindergarten",
+                                                      "Primary school (Class 1 - Class 6)",
+                                                      "Lower secondary school (Form 1 - Form 4)",
+                                                      "Higher secondary school (Form 5 - Form 7)",
+                                                      "Technical and Vocational",
+                                                      "University or Tertiary",
+                                                      "Special school",
+                                                      "Other (note)"))
+  
+  return(education_data)
+}
+
+# Process education data for men
+process_education_data_men <- function(data) {
+  education_data_men <- data %>%
+    filter(sex == "1") %>%
+    select(contains("Education")) %>%
+    na.omit()
+  
+  education_data_men$education_level <- factor(education_data_men$education_level,
+                                               levels = 1:8,
+                                               labels = c("Preschool, kindergarten",
+                                                          "Primary school (Class 1 - Class 6)",
+                                                          "Lower secondary school (Form 1 - Form 4)",
+                                                          "Higher secondary school (Form 5 - Form 7)",
+                                                          "Technical and Vocational",
+                                                          "University or Tertiary",
+                                                          "Special school",
+                                                          "Other (note)"))
+  
+  return(education_data_men)
+}
+
+# Process empowerment data for women
+process_empowerment_data <- function(data) {
+  empowerment_data <- data %>%
+    filter(sex == "2") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  empowerment_data$occupation_aggregate <- factor(empowerment_data$occupation_aggregate,
+                                                  levels = 1:7,
+                                                  labels = c("Managers, professionals, and technicians",
+                                                             "Clerical, service and sales workers",
+                                                             "Skilled agricultural & trades workers",
+                                                             "Plant and machine operators & assemblers",
+                                                             "Elementary occupations",
+                                                             "Armed forces",
+                                                             "Not elsewhere classified"))
+  empowerment_data$occupation_isco08_1digit <- factor(empowerment_data$occupation_isco08_1digit,
+                                                      levels = 1:11,
+                                                      labels = c("Managers",
+                                                                 "Professionals",
+                                                                 "Technicians and associate professionals",
+                                                                 "Clerical support workers",
+                                                                 "Service and sales workers",
+                                                                 "Skilled agricultural, forestry & fishery workers",
+                                                                 "Craft and related trades workers",
+                                                                 "Plant and machine operators & assemblers",
+                                                                 "Elementary occupations",
+                                                                 "Armed forces occupations",
+                                                                 "Not elsewhere classified"))
+  
+  return(empowerment_data)
+}
+
+# Process empowerment data for men
+process_empowerment_data_men <- function(data) {
+  empowerment_data_men <- data %>%
+    filter(sex == "1") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  empowerment_data_men$occupation_aggregate <- factor(empowerment_data_men$occupation_aggregate,
+                                                      levels = 1:7,
+                                                      labels = c("Managers, professionals, and technicians",
+                                                                 "Clerical, service and sales workers",
+                                                                 "Skilled agricultural & trades workers",
+                                                                 "Plant and machine operators & assemblers",
+                                                                 "Elementary occupations",
+                                                                 "Armed forces",
+                                                                 "Not elsewhere classified"))
+  empowerment_data_men$occupation_isco08_1digit <- factor(empowerment_data_men$occupation_isco08_1digit,
+                                                          levels = 1:11,
+                                                          labels = c("Managers",
+                                                                     "Professionals",
+                                                                     "Technicians and associate professionals",
+                                                                     "Clerical support workers",
+                                                                     "Service and sales workers",
+                                                                     "Skilled agricultural, forestry & fishery workers",
+                                                                     "Craft and related trades workers",
+                                                                     "Plant and machine operators & assemblers",
+                                                                     "Elementary occupations",
+                                                                     "Armed forces occupations",
+                                                                     "Not elsewhere classified"))
+  
+  return(empowerment_data_men)
+}
+
+# Generate comparative plot for education data
+plot_comparative_education_data <- function(data_women, data_men, x_var, y_var, plot_type) {
+  education_data_summary_women <- data_women %>%
+    group_by(education_level) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  education_data_summary_men <- data_men %>%
+    group_by(education_level) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  education_data_summary_women$sex <- "Women"
+  education_data_summary_men$sex <- "Men"
+  
+  education_data_summary <- rbind(education_data_summary_women, education_data_summary_men)
+  
+  p <- ggplot(education_data_summary, aes_string(x = x_var, y = y_var, color = "sex", group = "sex"))
+  
+  if (plot_type == "bar") {
+    p <- p + geom_bar(stat = "identity", position = "dodge", aes(fill = "sex"))
+  } else if (plot_type == "line") {
+    p <- p + geom_line(size = 1.5) + geom_point(size = 4)
+  } else if (plot_type == "scatter") {
+    p <- p + geom_point(size = 4)
+  }
+  
+  p <- p +
+    scale_color_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    scale_fill_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    labs(title = "Comparative Distribution of Education Level",
+         x = "Education Level",
+         y = "Percentage") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  ggplotly(p)
+}
+
+# Generate comparative plot for empowerment data
+plot_comparative_empowerment_data <- function(data_women, data_men, x_var, y_var, plot_type) {
+  empowerment_data_summary_women <- data_women %>%
+    group_by_at(x_var) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  empowerment_data_summary_men <- data_men %>%
+    group_by_at(x_var) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  empowerment_data_summary_women$sex <- "Women"
+  empowerment_data_summary_men$sex <- "Men"
+  
+  empowerment_data_summary <- rbind(empowerment_data_summary_women, empowerment_data_summary_men)
+  
+  p <- ggplot(empowerment_data_summary, aes_string(x = x_var, y = y_var, color = "sex", group = "sex"))
+  
+  if (plot_type == "bar") {
+    p <- p + geom_bar(stat = "identity", position = "dodge", aes(fill = "sex"))
+  } else if (plot_type == "line") {
+    p <- p + geom_line(size = 1.5) + geom_point(size = 4)
+  } else if (plot_type == "scatter") {
+    p <- p + geom_point(size = 4)
+  }
+  
+  p <- p +
+    scale_color_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    scale_fill_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    labs(title = "Comparative Distribution of Occupation",
+         x = "Occupation Category",
+         y = "Percentage") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  ggplotly(p)
+}
+
+# Define UI for the application
+ui <- dashboardPage(
+  dashboardHeader(title = "Visualization Dashboard"),
+  dashboardSidebar(disable = TRUE),
+  dashboardBody(
+    fluidRow(
+      box(title = "Comparative Education Level", status = "primary", solidHeader = TRUE,
+          selectInput("comparative_education_plot_type", "Select plot type", choices = c("bar", "line", "scatter")),
+          plotlyOutput("comparative_education_plot")
+      ),
+      box(title = "Comparative Occupational Category", status = "primary", solidHeader = TRUE,
+          selectInput("comparative_empowerment_plot_type", "Select plot type", choices = c("bar", "line", "scatter")),
+          plotlyOutput("comparative_empowerment_plot")
+      )
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  data <- load_data("SDD GEDSI Recruitment exercise.xlsx")
+  
+  # Process data for women
+  education_data <- process_education_data(data)
+  empowerment_data <- process_empowerment_data(data)
+  
+  # Process data for men
+  education_data_men <- process_education_data_men(data)
+  empowerment_data_men <- process_empowerment_data_men(data)
+  
+  # Render comparative plots
+  output$comparative_education_plot <- renderPlotly({
+    plot_comparative_education_data(education_data, education_data_men, "education_level", "percentage", input$comparative_education_plot_type)
+  })
+  
+  output$comparative_empowerment_plot <- renderPlotly({
+    plot_comparative_empowerment_data(empowerment_data, empowerment_data_men, "occupation_aggregate", "percentage", input$comparative_empowerment_plot_type)
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+```
+
+Part 2
+```{r vis1}
+# Load the dataset from a single sheet
+load_data <- function(file_path) {
+  data <- read_excel(file_path, sheet = "Database")
+  return(data)
+}
+
+# Process education data for women
+process_education_data <- function(data) {
+  education_data <- data %>%
+    filter(sex == "2") %>%
+    select(contains("Education")) %>%
+    na.omit()
+  
+  education_data$education_level <- factor(education_data$education_level,
+                                           levels = 1:8,
+                                           labels = c("Preschool, kindergarten",
+                                                      "Primary school (Class 1 - Class 6)",
+                                                      "Lower secondary school (Form 1 - Form 4)",
+                                                      "Higher secondary school (Form 5 - Form 7)",
+                                                      "Technical and Vocational",
+                                                      "University or Tertiary",
+                                                      "Special school",
+                                                      "Other (note)"))
+  
+  return(education_data)
+}
+
+# Process education data for men
+process_education_data_men <- function(data) {
+  education_data_men <- data %>%
+    filter(sex == "1") %>%
+    select(contains("Education")) %>%
+    na.omit()
+  
+  education_data_men$education_level <- factor(education_data_men$education_level,
+                                               levels = 1:8,
+                                               labels = c("Preschool, kindergarten",
+                                                          "Primary school (Class 1 - Class 6)",
+                                                          "Lower secondary school (Form 1 - Form 4)",
+                                                          "Higher secondary school (Form 5 - Form 7)",
+                                                          "Technical and Vocational",
+                                                          "University or Tertiary",
+                                                          "Special school",
+                                                          "Other (note)"))
+  
+  return(education_data_men)
+}
+
+# Process empowerment data for women
+process_empowerment_data <- function(data) {
+  empowerment_data <- data %>%
+    filter(sex == "2") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  empowerment_data$occupation_aggregate <- factor(empowerment_data$occupation_aggregate,
+                                                  levels = 1:7,
+                                                  labels = c("Managers, professionals, and technicians",
+                                                             "Clerical, service and sales workers",
+                                                             "Skilled agricultural & trades workers",
+                                                             "Plant and machine operators & assemblers",
+                                                             "Elementary occupations",
+                                                             "Armed forces",
+                                                             "Not elsewhere classified"))
+  empowerment_data$occupation_isco08_1digit <- factor(empowerment_data$occupation_isco08_1digit,
+                                                      levels = 1:11,
+                                                      labels = c("Managers",
+                                                                 "Professionals",
+                                                                 "Technicians and associate professionals",
+                                                                 "Clerical support workers",
+                                                                 "Service and sales workers",
+                                                                 "Skilled agricultural, forestry & fishery workers",
+                                                                 "Craft and related trades workers",
+                                                                 "Plant and machine operators & assemblers",
+                                                                 "Elementary occupations",
+                                                                 "Armed forces occupations",
+                                                                 "Not elsewhere classified"))
+  
+  return(empowerment_data)
+}
+
+# Process empowerment data for men
+process_empowerment_data_men <- function(data) {
+  empowerment_data_men <- data %>%
+    filter(sex == "1") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  empowerment_data_men$occupation_aggregate <- factor(empowerment_data_men$occupation_aggregate,
+                                                      levels = 1:7,
+                                                      labels = c("Managers, professionals, and technicians",
+                                                                 "Clerical, service and sales workers",
+                                                                 "Skilled agricultural & trades workers",
+                                                                 "Plant and machine operators & assemblers",
+                                                                 "Elementary occupations",
+                                                                 "Armed forces",
+                                                                 "Not elsewhere classified"))
+  empowerment_data_men$occupation_isco08_1digit <- factor(empowerment_data_men$occupation_isco08_1digit,
+                                                          levels = 1:11,
+                                                          labels = c("Managers",
+                                                                     "Professionals",
+                                                                     "Technicians and associate professionals",
+                                                                     "Clerical support workers",
+                                                                     "Service and sales workers",
+                                                                     "Skilled agricultural, forestry & fishery workers",
+                                                                     "Craft and related trades workers",
+                                                                     "Plant and machine operators & assemblers",
+                                                                     "Elementary occupations",
+                                                                     "Armed forces occupations",
+                                                                     "Not elsewhere classified"))
+  
+  return(empowerment_data_men)
+}
+
+# Process employment data for disabled and abled men and women
+process_employment_data_disabled_men <- function(data) {
+  employment_data_disabled_men <- data %>%
+    filter(sex == "1" & disabled == "1") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  employment_data_disabled_men$occupation_aggregate <- factor(employment_data_disabled_men$occupation_aggregate,
+                                                              levels = 1:7,
+                                                              labels = c("Managers, professionals, and technicians",
+                                                                         "Clerical, service and sales workers",
+                                                                         "Skilled agricultural & trades workers",
+                                                                         "Plant and machine operators & assemblers",
+                                                                         "Elementary occupations",
+                                                                         "Armed forces",
+                                                                         "Not elsewhere classified"))
+  
+  return(employment_data_disabled_men)
+}
+
+process_employment_data_abled_men <- function(data) {
+  employment_data_abled_men <- data %>%
+    filter(sex == "1" & disabled == "0") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  employment_data_abled_men$occupation_aggregate <- factor(employment_data_abled_men$occupation_aggregate,
+                                                           levels = 1:7,
+                                                           labels = c("Managers, professionals, and technicians",
+                                                                      "Clerical, service and sales workers",
+                                                                      "Skilled agricultural & trades workers",
+                                                                      "Plant and machine operators & assemblers",
+                                                                      "Elementary occupations",
+                                                                      "Armed forces",
+                                                                      "Not elsewhere classified"))
+  
+  return(employment_data_abled_men)
+}
+
+process_employment_data_disabled_women <- function(data) {
+  employment_data_disabled_women <- data %>%
+    filter(sex == "2" & disabled == "1") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  employment_data_disabled_women$occupation_aggregate <- factor(employment_data_disabled_women$occupation_aggregate,
+                                                                levels = 1:7,
+                                                                labels = c("Managers, professionals, and technicians",
+                                                                           "Clerical, service and sales workers",
+                                                                           "Skilled agricultural & trades workers",
+                                                                           "Plant and machine operators & assemblers",
+                                                                           "Elementary occupations",
+                                                                           "Armed forces",
+                                                                           "Not elsewhere classified"))
+  
+  return(employment_data_disabled_women)
+}
+
+process_employment_data_abled_women <- function(data) {
+  employment_data_abled_women <- data %>%
+    filter(sex == "2" & disabled == "0") %>%
+    select(contains("Occupation")) %>%
+    na.omit()
+  
+  employment_data_abled_women$occupation_aggregate <- factor(employment_data_abled_women$occupation_aggregate,
+                                                             levels = 1:7,
+                                                             labels = c("Managers, professionals, and technicians",
+                                                                        "Clerical, service and sales workers",
+                                                                        "Skilled agricultural & trades workers",
+                                                                        "Plant and machine operators & assemblers",
+                                                                        "Elementary occupations",
+                                                                        "Armed forces",
+                                                                        "Not elsewhere classified"))
+  
+  return(employment_data_abled_women)
+}
+
+# Generate comparative plot for education data
+plot_comparative_education_data <- function(data_women, data_men, x_var, y_var, plot_type) {
+  education_data_summary_women <- data_women %>%
+    group_by(education_level) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  education_data_summary_men <- data_men %>%
+    group_by(education_level) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  education_data_summary_women$sex <- "Women"
+  education_data_summary_men$sex <- "Men"
+  
+  education_data_summary <- rbind(education_data_summary_women, education_data_summary_men)
+  
+  p <- ggplot(education_data_summary, aes_string(x = x_var, y = y_var, color = "sex", group = "sex"))
+  
+  if (plot_type == "bar") {
+    p <- p + geom_bar(stat = "identity", position = "dodge", aes(fill = "sex"))
+  } else if (plot_type == "line") {
+    p <- p + geom_line(size = 1.5) + geom_point(size = 4)
+  } else if (plot_type == "scatter") {
+    p <- p + geom_point(size = 4)
+  }
+  
+  p <- p +
+    scale_color_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    scale_fill_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    labs(title = "Comparative Distribution of Education Level",
+         x = "Education Level",
+         y = "Percentage") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  return(p)
+}
+
+# Generate comparative plot for occupation and empowerment data
+plot_comparative_empowerment_data <- function(data_women, data_men, x_var, y_var, plot_type) {
+  empowerment_data_summary_women <- data_women %>%
+    group_by(occupation_aggregate) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  empowerment_data_summary_men <- data_men %>%
+    group_by(occupation_aggregate) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  empowerment_data_summary_women$sex <- "Women"
+  empowerment_data_summary_men$sex <- "Men"
+  
+  empowerment_data_summary <- rbind(empowerment_data_summary_women, empowerment_data_summary_men)
+  
+  p <- ggplot(empowerment_data_summary, aes_string(x = x_var, y = y_var, color = "sex", group = "sex"))
+  
+  if (plot_type == "bar") {
+    p <- p + geom_bar(stat = "identity", position = "dodge", aes(fill = "sex"))
+  } else if (plot_type == "line") {
+    p <- p + geom_line(size = 1.5) + geom_point(size = 4)
+  } else if (plot_type == "scatter") {
+    p <- p + geom_point(size = 4)
+  }
+  
+  p <- p +
+    scale_color_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    scale_fill_manual(values = c("Women" = "pink", "Men" = "blue")) +
+    labs(title = "Comparative Distribution of Occupation",
+         x = "Occupation",
+         y = "Percentage") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  return(p)
+}
+
+# Generate comparative plot for employment data
+plot_comparative_employment_data <- function(data_disabled, data_abled, x_var, y_var, plot_type) {
+  employment_data_summary_disabled <- data_disabled %>%
+    group_by(occupation_aggregate) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  employment_data_summary_abled <- data_abled %>%
+    group_by(occupation_aggregate) %>%
+    summarise(count = n()) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  employment_data_summary_disabled$disabled_status <- "Disabled"
+  employment_data_summary_abled$disabled_status <- "Abled"
+  
+  employment_data_summary <- rbind(employment_data_summary_disabled, employment_data_summary_abled)
+  
+  p <- ggplot(employment_data_summary, aes_string(x = x_var, y = y_var, color = "disabled_status", group = "disabled_status"))
+  
+  if (plot_type == "bar") {
+    p <- p + geom_bar(stat = "identity", position = "dodge", aes(fill = "disabled_status"))
+  } else if (plot_type == "line") {
+    p <- p + geom_line(size = 1.5) + geom_point(size = 4)
+  } else if (plot_type == "scatter") {
+    p <- p + geom_point(size = 4)
+  }
+  
+  p <- p +
+    scale_color_manual(values = c("Disabled" = "red", "Abled" = "green")) +
+    scale_fill_manual(values = c("Disabled" = "red", "Abled" = "green")) +
+    labs(title = "Comparative Distribution of Employment by Disability Status",
+         x = "Occupation",
+         y = "Percentage") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  return(p)
+}
+
+# UI
+ui <- dashboardPage(
+  dashboardHeader(title = "Dashboard"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Home", tabName = "home", icon = icon("home")),
+      menuItem("Education Level", tabName = "education", icon = icon("graduation-cap")),
+      menuItem("Comparative Education by Sex", tabName = "comparative_education", icon = icon("book")),
+      menuItem("Occupation Category", tabName = "empowerment", icon = icon("briefcase")),
+      menuItem("Comparative Employment by Disability Status", tabName = "comparative_employment", icon = icon("line-chart")),
+      menuItem("Comparative Occupation by sex", tabName = "comparative_empowerment", icon = icon("bar-chart"))
+    )
+  ),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "home",
+              h2("Welcome to the Visualization Dashboard for SDD Social Data"),
+              p("Explore the data on occupation and economic activities across various groups of people in the Pacific.")
+      ),
+      tabItem(tabName = "education",
+              h2("Education Level of Women"),
+              plotlyOutput("educationPlot"),
+              textOutput("educationDescription")
+      ),
+      tabItem(tabName = "comparative_education",
+              h2("Comparative Education Level of Men and Women"),
+              radioButtons("plotType", "Select Plot Type", choices = c("Bar" = "bar", "Line" = "line", "Scatter" = "scatter")),
+              plotlyOutput("comparativeEducationPlot"),
+              textOutput("comparativeEducationDescription")
+      ),
+      tabItem(tabName = "empowerment",
+              h2("Occupation"),
+              plotlyOutput("empowermentPlot"),
+              textOutput("empowermentDescription")
+      ),
+      tabItem(tabName = "comparative_employment",
+              h2("Comparative Employment by Disability Status"),
+              radioButtons("plotTypeEmployment", "Select Plot Type", choices = c("Bar" = "bar", "Line" = "line", "Scatter" = "scatter")),
+              plotlyOutput("comparativeEmploymentPlot"),
+              textOutput("comparativeEmploymentDescription")
+      ),
+      tabItem(tabName = "comparative_empowerment",
+              h2("Comparative Occupation by Sex"),
+              radioButtons("plotTypeEmpowerment", "Select Plot Type", choices = c("Bar" = "bar", "Line" = "line", "Scatter" = "scatter")),
+              plotlyOutput("comparativeEmpowermentPlot"),
+              textOutput("comparativeEmpowermentDescription")
+      )
+    )
+  )
+)
+
+# Server
+# Server
+server <- function(input, output) {
+  data <- reactive({
+    load_data("SDD GEDSI Recruitment exercise.xlsx")
+  })
+  
+  education_data <- reactive({
+    process_education_data(data())
+  })
+  
+  education_data_men <- reactive({
+    process_education_data_men(data())
+  })
+  
+  empowerment_data <- reactive({
+    process_empowerment_data(data())
+  })
+  
+  empowerment_data_men <- reactive({
+    process_empowerment_data_men(data())
+  })
+  
+  employment_data_disabled_men <- reactive({
+    process_employment_data_disabled_men(data())
+  })
+  
+  employment_data_abled_men <- reactive({
+    process_employment_data_abled_men(data())
+  })
+  
+  employment_data_disabled_women <- reactive({
+    process_employment_data_disabled_women(data())
+  })
+  
+  employment_data_abled_women <- reactive({
+    process_employment_data_abled_women(data())
+  })
+  
+  output$educationPlot <- renderPlotly({
+    p <- ggplot(education_data(), aes(x = education_level, fill = education_level)) +
+      geom_bar() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      labs(title = "Distribution of Education Level for Women in the Pacific",
+           x = "Education Level",
+           y = "Count")
+    
+    ggplotly(p)
+  })
+  
+  output$educationDescription <- renderText({
+    data_summary <- education_data() %>%
+      group_by(education_level) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    paste("The education level distribution of women in the Pacific shows a variety of educational backgrounds. 
+    The majority of women have achieved 'Primary school' and 'Lower secondary school' levels. 
+    A smaller proportion have attained 'University or Tertiary' education, indicating a potential area for development in higher education opportunities for women.")
+  })
+  
+  output$comparativeEducationPlot <- renderPlotly({
+    p <- plot_comparative_education_data(education_data(), education_data_men(), "education_level", "percentage", input$plotType)
+    ggplotly(p)
+  })
+  
+  output$comparativeEducationDescription <- renderText({
+    data_summary_women <- education_data() %>%
+      group_by(education_level) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    data_summary_men <- education_data_men() %>%
+      group_by(education_level) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    comparison <- merge(data_summary_women, data_summary_men, by = "education_level", suffixes = c("_women", "_men"))
+    
+    paste("Comparing education levels between men and women, we observe that women are more likely to be in the 'Lower secondary school' category, 
+    while men have a higher percentage in 'Higher secondary school' and 'University or Tertiary' education. 
+    This indicates a gender disparity in higher education attainment.")
+  })
+  
+  output$empowermentPlot <- renderPlotly({
+    p <- ggplot(empowerment_data(), aes(x = occupation_aggregate, fill = occupation_aggregate)) +
+      geom_bar() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      labs(title = "Distribution of Occupation for Women in the Pacific",
+           x = "Occupation",
+           y = "Count")
+    
+    ggplotly(p)
+  })
+  
+  output$empowermentDescription <- renderText({
+    data_summary <- empowerment_data() %>%
+      group_by(occupation_aggregate) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    paste("The occupation distribution of women in the Pacific reveals a concentration in 'Elementary occupations' 
+    and 'Clerical, service and sales workers'. There is a notable underrepresentation in 'Managers, professionals, and technicians' roles, 
+    suggesting potential areas for increased support and development to enhance women's participation in higher-level occupations.")
+  })
+  
+  output$comparativeEmploymentPlot <- renderPlotly({
+    p <- plot_comparative_employment_data(employment_data_disabled_women(), employment_data_abled_women(), "occupation_aggregate", "percentage", input$plotTypeEmployment)
+    ggplotly(p)
+  })
+  
+  output$comparativeEmploymentDescription <- renderText({
+    data_summary_disabled <- employment_data_disabled_women() %>%
+      group_by(occupation_aggregate) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    data_summary_abled <- employment_data_abled_women() %>%
+      group_by(occupation_aggregate) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    comparison <- merge(data_summary_disabled, data_summary_abled, by = "occupation_aggregate", suffixes = c("_disabled", "_abled"))
+    
+    paste("Comparing employment data by disability status, disabled women are more represented in 'Elementary occupations' compared to their abled counterparts. 
+    This indicates that disability may affect access to higher-skilled roles. Strategies to increase opportunities for disabled women in various occupations could be beneficial.")
+  })
+  
+  output$comparativeEmpowermentPlot <- renderPlotly({
+    p <- plot_comparative_empowerment_data(empowerment_data(), empowerment_data_men(), "occupation_aggregate", "percentage", input$plotTypeEmpowerment)
+    ggplotly(p)
+  })
+  
+  output$comparativeEmpowermentDescription <- renderText({
+    data_summary_women <- empowerment_data() %>%
+      group_by(occupation_aggregate) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    data_summary_men <- empowerment_data_men() %>%
+      group_by(occupation_aggregate) %>%
+      summarise(count = n()) %>%
+      mutate(percentage = (count / sum(count)) * 100)
+    
+    comparison <- merge(data_summary_women, data_summary_men, by = "occupation_aggregate", suffixes = c("_women", "_men"))
+    
+    paste("Comparing occupation categories between men and women, we see that men are more likely to occupy 'Managers, professionals, and technicians' roles, 
+    while women are more represented in 'Clerical, service and sales workers' and 'Elementary occupations'. This highlights a gender disparity in higher-level occupations.")
+  })
+}
+
+shinyApp(ui, server)
+
+```
+
+
+## Part 3: Economic activities across abled and disabled men and women, including employment by professions for both men and women
+```{r vis2}
+# Function for Economic Activity Analysis
+economic_activity_analysis <- function(file_path, sheet_name) {
+  # Load the data from the specified sheet
+  dat <- read_excel(file_path, sheet = sheet_name)
+  
+  # Filter and process data
+  eco_activity_dis <- dat %>%
+    filter(sex == "1" & disabled == "1") %>%
+    select(activity_aggregate) %>%
+    na.omit() %>%
+    mutate(group = "Disabled Men")
+  
+  eco_activity_abled <- dat %>%
+    filter(sex == "1" & disabled == "0") %>%
+    select(activity_aggregate) %>%
+    na.omit() %>%
+    mutate(group = "Abled Men")
+  
+  eco_activity_abled_women <- dat %>%
+    filter(sex == "2" & disabled == "0") %>%
+    select(activity_aggregate) %>%
+    na.omit() %>%
+    mutate(group = "Abled Women")
+  
+  eco_activity_disabled_women <- dat %>%
+    filter(sex == "2" & disabled == "1") %>%
+    select(activity_aggregate) %>%
+    na.omit() %>%
+    mutate(group = "Disabled Women")
+  
+  # Combine all the datasets into one
+  combined_data <- bind_rows(
+    eco_activity_dis,
+    eco_activity_abled,
+    eco_activity_abled_women,
+    eco_activity_disabled_women
+  )
+  
+  # Calculate the percentage for each group
+  combined_data <- combined_data %>%
+    group_by(group, activity_aggregate) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(group) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  return(combined_data)
+}
+
+# Function for Employment and Education Analysis
+employment_education_analysis <- function(file_path, sheet_name) {
+  # Load the data from the specified sheet
+  dat <- read_excel(file_path, sheet = sheet_name)
+  
+  # Filter and process data
+  employed_men <- dat %>%
+    filter(sex == "1" & labour_force_status == "1") %>%
+    select(education_level) %>%
+    na.omit() %>%
+    mutate(group = "Employed Men")
+  
+  unemployed_men <- dat %>%
+    filter(sex == "1" & labour_force_status == "2") %>%
+    select(education_level) %>%
+    na.omit() %>%
+    mutate(group = "Unemployed Men")
+  
+  employed_women <- dat %>%
+    filter(sex == "2" & labour_force_status == "1") %>%
+    select(education_level) %>%
+    na.omit() %>%
+    mutate(group = "Employed Women")
+  
+  unemployed_women <- dat %>%
+    filter(sex == "2" & labour_force_status == "2") %>%
+    select(education_level) %>%
+    na.omit() %>%
+    mutate(group = "Unemployed Women")
+  
+  # Combine all the datasets into one
+  combined_data1 <- bind_rows(
+    employed_men,
+    unemployed_men,
+    employed_women,
+    unemployed_women
+  )
+  
+  # Calculate the percentage for each group
+  combined_data1 <- combined_data1 %>%
+    group_by(group, education_level) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(group) %>%
+    mutate(percentage = (count / sum(count)) * 100)
+  
+  return(combined_data1)
+}
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Economic and Employment Analysis"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Economic Activity Analysis", tabName = "economic_activity", icon = icon("chart-bar")),
+      menuItem("Employment and Education Analysis", tabName = "employment_education", icon = icon("graduation-cap"))
+    )
+  ),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "economic_activity",
+              fluidRow(
+                box(selectInput("eco_plot_type", "Select Plot Type:", choices = c("Bar Plot", "Line Plot")), width = 4),
+                box(plotlyOutput("economicActivityPlot", height = "600px"), width = 12),
+                box(htmlOutput("eco_activity_description"), width = 12)
+              )
+      ),
+      tabItem(tabName = "employment_education",
+              fluidRow(
+                box(selectInput("emp_plot_type", "Select Plot Type:", choices = c("Bar Plot", "Line Plot")), width = 4),
+                box(plotlyOutput("employmentEducationPlot", height = "600px"), width = 12),
+                box(htmlOutput("emp_edu_description"), width = 12)
+              )
+      )
+    )
+  )
+)
+
+server <- function(input, output) {
+  # Mapping for Economic Activity
+  eco_activity_labels <- c(
+    "1" = "Agriculture",
+    "2" = "Manufacturing",
+    "3" = "Construction",
+    "4" = "Mining and quarrying; Electricity, gas and water supply",
+    "5" = "Market Services",
+    "6" = "Non-market services",
+    "7" = "Not classifiable by economic activity"
+  )
+  
+  # Mapping for Education Level
+  education_labels <- c(
+    "1" = "Preschool, kindergarten",
+    "2" = "Primary school (Class 1 - Class 6)",
+    "3" = "Lower secondary school (Form 1 - Form 4)",
+    "4" = "Higher secondary school (Form 5 - Form 7)",
+    "5" = "Technical and Vocational",
+    "6" = "University/Tertiary",
+    "7" = "Special school",
+    "8" = "Other (note)"
+  )
+  
+  output$economicActivityPlot <- renderPlotly({
+    combined_data <- economic_activity_analysis("SDD GEDSI Recruitment exercise.xlsx", "Database")
+    
+    combined_data$activity_aggregate <- factor(combined_data$activity_aggregate, levels = names(eco_activity_labels), labels = eco_activity_labels)
+    
+    if (input$eco_plot_type == "Bar Plot") {
+      p <- ggplot(combined_data, aes(x = activity_aggregate, y = percentage, fill = group)) +
+        geom_bar(stat = "identity", position = "dodge", alpha = 0.5) +
+        labs(title = "Distribution of Economic Activities by Group (Percentage)",
+             x = "Economic Activity",
+             y = "Percentage",
+             fill = "Group") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+              plot.title = element_text(size = 16),
+              axis.title = element_text(size = 14)) +
+        scale_fill_manual(values = c("Disabled Men" = "red", 
+                                     "Abled Men" = "blue", 
+                                     "Abled Women" = "green", 
+                                     "Disabled Women" = "purple")) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1))
+    } else {
+      p <- ggplot(combined_data, aes(x = activity_aggregate, y = percentage, group = group, color = group)) +
+        geom_line(size = 1) +
+        geom_point(size = 3) +
+        labs(title = "Distribution of Economic Activities by Group (Percentage)",
+             x = "Economic Activity",
+             y = "Percentage",
+             color = "Group") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+              plot.title = element_text(size = 16),
+              axis.title = element_text(size = 14)) +
+        scale_color_manual(values = c("Disabled Men" = "red", 
+                                      "Abled Men" = "blue", 
+                                      "Abled Women" = "green", 
+                                      "Disabled Women" = "purple")) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1))
+    }
+    
+    ggplotly(p)
+  })
+  
+  output$employmentEducationPlot <- renderPlotly({
+    combined_data1 <- employment_education_analysis("SDD GEDSI Recruitment exercise.xlsx", "Database")
+    
+    combined_data1$education_level <- factor(combined_data1$education_level, levels = names(education_labels), labels = education_labels)
+    
+    if (input$emp_plot_type == "Bar Plot") {
+      p <- ggplot(combined_data1, aes(x = education_level, y = percentage, fill = group)) +
+        geom_bar(stat = "identity", position = "dodge", alpha = 0.5) +
+        labs(title = "Distribution of Employment by Group (Percentage)",
+             x = "Education Level",
+             y = "Percentage",
+             fill = "Group") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+              plot.title = element_text(size = 16),
+              axis.title = element_text(size = 14)) +
+        scale_fill_manual(values = c("Employed Men" = "red", 
+                                     "Unemployed Men" = "blue", 
+                                     "Employed Women" = "green", 
+                                     "Unemployed Women" = "purple")) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1))
+    } else {
+      p <- ggplot(combined_data1, aes(x = education_level, y = percentage, group = group, color = group)) +
+        geom_line(size = 1) +
+        geom_point(size = 3) +
+        labs(title = "Distribution of Employment by Group (Percentage)",
+             x = "Education Level",
+             y = "Percentage",
+             color = "Group") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+              plot.title = element_text(size = 16),
+              axis.title = element_text(size = 14)) +
+        scale_color_manual(values = c("Employed Men" = "red", 
+                                      "Unemployed Men" = "blue", 
+                                      "Employed Women" = "green", 
+                                      "Unemployed Women" = "purple")) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1))
+    }
+    
+    ggplotly(p)
+  })
+  
+  output$eco_activity_description <- renderUI({
+    HTML("<b>Economic Activity Analysis:</b> This analysis shows the distribution of economic activities among different groups. The groups include Disabled Men, Abled Men, Abled Women, and Disabled Women. By comparing these groups, we can gain insights into how economic activity participation varies across different demographics. For example, we can see if Disabled Men are more or less likely to participate in certain economic activities compared to Abled Men. This information is crucial for understanding employment barriers and opportunities for disabled individuals.")
+  })
+  
+  output$emp_edu_description <- renderUI({
+    HTML("<b>Employment and Education Analysis:</b> This analysis shows the distribution of employment status among different groups based on their education levels. The groups include Employed Men, Unemployed Men, Employed Women, and Unemployed Women. By analyzing this data, we can observe how education level impacts employment status across genders. For instance, we might find that higher education levels correspond to higher employment rates for both men and women. Additionally, we can identify any significant disparities in employment status between genders with the same education level, which can inform policy decisions and educational programs aimed at reducing unemployment.")
+  })
+}
+
+shinyApp(ui, server)
+
+```
+
+
+## Visualization 2: Dataset 2 - New Caledonia Death Dataset [Les causes médicales de décès en Nouvelle-Calédonie]
+```{r load_data}
+# Function to load and preprocess data
+load_and_preprocess_data <- function(file_path) {
+  dat <- read.csv(file_path)
+  
+  dat <- dat %>%
+    mutate(ICD_10_Code = str_extract(Original_cause, '"classe":\\s*"([A-Z0-9]+)"')) %>%
+    mutate(ICD_10_Code = str_extract(ICD_10_Code, '[A-Z0-9]+')) %>%
+    select(ICD_10_Code, row_number, Age_class, Death.year, Sex) %>%
+    na.omit()
+  
+  return(dat)
+}
+
+# Function to calculate percentages
+calculate_percentages <- function(data, group_var) {
+  data %>%
+    group_by(across(all_of(group_var))) %>%
+    tally(name = "Count") %>%
+    mutate(Percentage = Count / sum(Count) * 100)
+}
+
+# Function to calculate trends
+calculate_trends <- function(data) {
+  data %>%
+    group_by(Death.year, ICD_10_Code) %>%
+    tally(name = "Count") %>%
+    group_by(Death.year) %>%
+    mutate(Total_Count = sum(Count)) %>%
+    ungroup() %>%
+    mutate(Percentage = Count / Total_Count * 100)
+}
+
+# Function to generate bar chart
+generate_bar_chart <- function(data, x_var, y_var, title, x_label, y_label) {
+  plot_ly(data, x = ~get(x_var), y = ~get(y_var), type = 'bar', color = ~get(x_var)) %>%
+    layout(title = title,
+           xaxis = list(title = x_label),
+           yaxis = list(title = y_label))
+}
+
+# Function to generate scatter plot
+generate_scatter_plot <- function(data, x_var, y_var, color_var, title, x_label, y_label) {
+  plot_ly(data, x = ~get(x_var), y = ~get(y_var), color = ~get(color_var), type = 'scatter', mode = 'lines+markers') %>%
+    layout(title = title,
+           xaxis = list(title = x_label),
+           yaxis = list(title = y_label))
+}
+
+# Function to generate line plot
+generate_line_plot <- function(data, x_var, y_var, color_var, title, x_label, y_label) {
+  plot_ly(data, x = ~get(x_var), y = ~get(y_var), color = ~get(color_var), type = 'scatter', mode = 'lines') %>%
+    layout(title = title,
+           xaxis = list(title = x_label),
+           yaxis = list(title = y_label))
+}
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Interactive Analysis of Medical Causes of Death in New Caledonia"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("tab1_visualization", "Select Visualization for Gender Distribution:",
+                  choices = c("Bar Chart" = "genderBar", "Pie Chart" = "genderPie")),
+      selectInput("tab2_visualization", "Select Visualization for Age Distribution:",
+                  choices = c("Bar Chart" = "ageBar", "Pie Chart" = "agePie")),
+      selectInput("tab3_visualization", "Select Visualization for Causes of Death:",
+                  choices = c("Bar Chart" = "causeBar")),
+      selectInput("tab4_visualization", "Select Visualization for Trends Over Time:",
+                  choices = c("Scatter Plot" = "trendScatter", "Line Plot" = "trendLine"))
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Gender Distribution",
+                 uiOutput("genderPlotUI"),
+                 uiOutput("genderDesc")
+        ),
+        tabPanel("Age Distribution",
+                 uiOutput("agePlotUI"),
+                 uiOutput("ageDesc")
+        ),
+        tabPanel("Causes of Death",
+                 uiOutput("causePlotUI"),
+                 uiOutput("causeDesc")
+        ),
+        tabPanel("Trends Over Time",
+                 uiOutput("trendPlotUI"),
+                 uiOutput("trendDesc")
+        )
+      )
+    )
+  )
+)
+
+# Define server
+server <- function(input, output, session) {
+  
+  # Load and preprocess data
+  dat_filtered <- load_and_preprocess_data("causes_medicales_deces_nc (1).csv")
+  
+  # Calculate summaries
+  dat_summary <- calculate_percentages(dat_filtered, "Sex")
+  dat_age_summary <- calculate_percentages(dat_filtered, "Age_class")
+  dat_cause_summary <- calculate_percentages(dat_filtered, "ICD_10_Code")
+  dat_trends <- calculate_trends(dat_filtered)
+  
+  # Gender Distribution
+  output$genderPlotUI <- renderUI({
+    if (input$tab1_visualization == "genderBar") {
+      plotlyOutput("genderPlot")
+    } else if (input$tab1_visualization == "genderPie") {
+      plotlyOutput("genderPieChart")
+    }
+  })
+  
+  output$genderPlot <- renderPlotly({
+    generate_bar_chart(dat_summary, "Sex", "Percentage", "Gender Distribution of Deaths", "Gender", "Percentage")
+  })
+  
+  output$genderPieChart <- renderPlotly({
+    generate_pie_chart(dat_summary, "Sex", "Percentage", "Gender Distribution of Deaths")
+  })
+  
+  output$genderDesc <- renderUI({
+    summary_stats <- dat_summary %>%
+      arrange(desc(Percentage)) %>%
+      head(1) %>%
+      pull(Percentage)
+    
+    description <- if (input$tab1_visualization == "genderBar") {
+      p(paste("This bar chart shows the distribution of deaths by gender. The percentage of deaths is highest in the gender category with", round(summary_stats, 2), "% of the total."))
+    } else if (input$tab1_visualization == "genderPie") {
+      p(paste("This pie chart provides a proportional view of deaths by gender. The largest segment represents", round(summary_stats, 2), "% of the total deaths."))
+    }
+    description
+  })
+  
+  # Age Distribution
+  output$agePlotUI <- renderUI({
+    if (input$tab2_visualization == "ageBar") {
+      plotlyOutput("agePlot")
+    } else if (input$tab2_visualization == "agePie") {
+      plotlyOutput("agePieChart")
+    }
+  })
+  
+  output$agePlot <- renderPlotly({
+    generate_bar_chart(dat_age_summary, "Age_class", "Percentage", "Age Distribution of Deaths", "Age Group", "Percentage")
+  })
+  
+  output$agePieChart <- renderPlotly({
+    generate_pie_chart(dat_age_summary, "Age_class", "Percentage", "Age Distribution of Deaths")
+  })
+  
+  output$ageDesc <- renderUI({
+    summary_stats <- dat_age_summary %>%
+      arrange(desc(Percentage)) %>%
+      head(1) %>%
+      pull(Percentage)
+    
+    description <- if (input$tab2_visualization == "ageBar") {
+      p(paste("This bar chart displays the distribution of deaths across different age groups. The age group with the highest percentage accounts for", round(summary_stats, 2), "% of the total deaths."))
+    } else if (input$tab2_visualization == "agePie") {
+      p(paste("This pie chart shows the proportion of deaths across age groups. The largest segment represents", round(summary_stats, 2), "% of the total deaths."))
+    }
+    description
+  })
+  
+  # Causes of Death
+  output$causePlotUI <- renderUI({
+    if (input$tab3_visualization == "causeBar") {
+      plotlyOutput("causePlot")
+    }
+  })
+  
+  output$causePlot <- renderPlotly({
+    generate_bar_chart(dat_cause_summary, "ICD_10_Code", "Percentage", "Causes of Death", "Cause of Death", "Percentage")
+  })
+  
+  output$causeDesc <- renderUI({
+    summary_stats <- dat_cause_summary %>%
+      arrange(desc(Percentage)) %>%
+      head(1) %>%
+      pull(Percentage)
+    
+    p(paste("This bar chart illustrates the distribution of different causes of death, represented by ICD-10 codes. The most prevalent cause accounts for", round(summary_stats, 2), "% of the total deaths."))
+  })
+  
+  # Trends Over Time
+  output$trendPlotUI <- renderUI({
+    if (input$tab4_visualization == "trendScatter") {
+      plotlyOutput("trendPlot")
+    } else if (input$tab4_visualization == "trendLine") {
+      plotlyOutput("trendLinePlot")
+    }
+  })
+  
+  output$trendPlot <- renderPlotly({
+    generate_scatter_plot(dat_trends, "Death.year", "Percentage", "ICD_10_Code", "Trends of Causes of Death Over Time", "Year", "Percentage")
+  })
+  
+  output$trendLinePlot <- renderPlotly({
+    generate_line_plot(dat_trends, "Death.year", "Percentage", "ICD_10_Code", "Trends of Causes of Death (Line Plot)", "Year", "Percentage")
+  })
+  
+  output$trendDesc <- renderUI({
+    summary_stats <- dat_trends %>%
+      group_by(Death.year) %>%
+      summarise(Mean_Percentage = mean(Percentage)) %>%
+      arrange(desc(Mean_Percentage)) %>%
+      head(1) %>%
+      pull(Mean_Percentage)
+    
+    description <- if (input$tab4_visualization == "trendScatter") {
+      p(paste("This scatter plot shows the trends of causes of death over time. The average percentage for the most recent year is", round(summary_stats, 2), "%. Different colors represent various causes of death (ICD-10 codes)."))
+    } else if (input$tab4_visualization == "trendLine") {
+      p(paste("This line plot illustrates the trends of causes of death over time. The average percentage for the most recent year is", round(summary_stats, 2), "%. Each line represents a cause of death, showing how its frequency has changed over the years."))
+    }
+    description
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
