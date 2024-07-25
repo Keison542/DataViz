@@ -1,4 +1,4 @@
-# DataViz
+# Pacific DataViz Challenge 2024
 DataViz
 1. Download the DataViz.Rmd and all the datasets.
 2. Put them in one folder
