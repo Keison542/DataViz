@@ -12,5 +12,5 @@ Follow the instructions below on how to use the datasets and RCode to see the vi
 2. https://lnkd.in/ganS6hkf
 3. https://lnkd.in/gCz3cGi
    
-Landscape view is recommended if using mobile phone to access visualization dashboards. 
+Landscape view is recommended if you are using mobile phone to access visualization dashboards. 
 hashtag#RProgramming hashtag#PacificDataVizCompetition hashtag#SPC hashtag#SDDsocialdataset
