@@ -8,9 +8,9 @@ Follow the instructions below on how to use the datasets and RCode to see the vi
 5. You are able to see three different dashboards of the data visualization
 
 6. Alernatively, visit the links to see the data visualizations
-1. https://lnkd.in/gvsVuhtp
-2. https://lnkd.in/ganS6hkf
-3. https://lnkd.in/gCz3cGi
+1. https://2h77q9-keison-tipiou.shinyapps.io/edu_app/
+2. [https://lnkd.in/ganS6hkf](https://2h77q9-keison-tipiou.shinyapps.io/death_app/)
+3. [https://lnkd.in/gCz3cGi](https://2h77q9-keison-tipiou.shinyapps.io/educ_app/)
    
 Landscape view is recommended if you are using mobile phone to access visualization dashboards. 
 hashtag#RProgramming hashtag#PacificDataVizCompetition hashtag#SPC hashtag#SDDsocialdataset
